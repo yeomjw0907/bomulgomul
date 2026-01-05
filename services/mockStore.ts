@@ -2,22 +2,51 @@ import { INITIAL_PRODUCTS, MOCK_USERS } from '../constants';
 import { Product, User, Bid, ProductType, ProductStatus, UserRole } from '../types';
 
 type StoreEvent = {
-  type: 'BID_UPDATE' | 'AUCTION_CLOSED';
-  productId: string;
-  product: Product;
+  type: 'BID_UPDATE' | 'AUCTION_CLOSED' | 'USER_UPDATE';
+  productId?: string;
+  product?: Product;
+  user?: User | null;
 };
 
 type StoreListener = (event: StoreEvent) => void;
 
 class MockStore {
   private products: Product[] = [...INITIAL_PRODUCTS];
-  private users: User[] = [...MOCK_USERS];
+  private users: User[] = [];
   private currentUser: User | null = null;
   private listeners: Set<StoreListener> = new Set();
   private channel: BroadcastChannel;
+  
+  // In-memory password storage (synced to LS)
+  private credentials = new Map<string, string>();
 
   constructor() {
-    // Initialize user from LocalStorage to persist sessions across reloads
+    // 1. Initialize Users
+    const storedUsers = localStorage.getItem('bomul_users');
+    if (storedUsers) {
+        try {
+            this.users = JSON.parse(storedUsers);
+        } catch(e) {
+            this.users = [...MOCK_USERS];
+        }
+    } else {
+        this.users = [...MOCK_USERS];
+    }
+
+    // 2. Initialize Credentials
+    const storedCreds = localStorage.getItem('bomul_credentials');
+    if (storedCreds) {
+        try {
+            const credObj = JSON.parse(storedCreds);
+            this.credentials = new Map(Object.entries(credObj));
+        } catch(e) {
+            this.initDefaultCredentials();
+        }
+    } else {
+        this.initDefaultCredentials();
+    }
+
+    // 3. Initialize Current User
     const savedUserId = localStorage.getItem('bomul_current_user_id');
     if (savedUserId) {
       this.currentUser = this.users.find(u => u.id === savedUserId) || null; 
@@ -25,12 +54,32 @@ class MockStore {
       this.currentUser = null; 
     }
 
-    // Initialize BroadcastChannel to simulate WebSocket behavior for real-time updates across tabs/windows
+    // 4. Initialize BroadcastChannel
     this.channel = new BroadcastChannel('bomul_auction_updates');
     this.channel.onmessage = (event) => {
-      const { type, productId, product } = event.data;
-      this.handleRemoteUpdate(type, productId, product);
+      const { type, productId, product, user } = event.data;
+      if (type === 'USER_UPDATE') {
+          // Sync user state across tabs if needed, though mostly local
+      } else {
+          this.handleRemoteUpdate(type, productId, product);
+      }
     };
+  }
+
+  private initDefaultCredentials() {
+      this.credentials.set('admin', 'admin123!');
+      this.credentials.set('user1', 'admin123!');
+      this.credentials.set('user2', 'admin123!');
+      this.saveCredentials();
+  }
+
+  private saveUsers() {
+      localStorage.setItem('bomul_users', JSON.stringify(this.users));
+  }
+
+  private saveCredentials() {
+      const obj = Object.fromEntries(this.credentials);
+      localStorage.setItem('bomul_credentials', JSON.stringify(obj));
   }
 
   // Real-time Subscription
@@ -39,33 +88,36 @@ class MockStore {
     return () => this.listeners.delete(listener);
   }
 
-  // Handle updates received from other tabs (simulating WebSocket message received)
   private handleRemoteUpdate(type: 'BID_UPDATE' | 'AUCTION_CLOSED', productId: string, updatedProduct: Product) {
     const index = this.products.findIndex(p => p.id === productId);
     if (index !== -1) {
       this.products[index] = updatedProduct;
-      // Notify local listeners (UI) about the update. 
-      // Pass true for 'fromRemote' to prevent re-broadcasting.
-      this.notify(type, productId, true); 
+      this.notify('BID_UPDATE', { productId, product: { ...updatedProduct } }, true); 
     }
   }
 
-  private notify(type: 'BID_UPDATE' | 'AUCTION_CLOSED', productId: string, fromRemote: boolean = false) {
-    const product = this.getProductById(productId);
-    if (product) {
-      // Broadcast to local listeners (React components)
-      this.listeners.forEach(listener => listener({ type, productId, product: { ...product } }));
-      
-      // If this change originated locally, broadcast it to other tabs via Channel
-      if (!fromRemote) {
-        this.channel.postMessage({ type, productId, product });
-      }
+  private notify(type: StoreEvent['type'], data: { productId?: string, product?: Product, user?: User | null } = {}, fromRemote: boolean = false) {
+    const event: StoreEvent = { type, ...data };
+    this.listeners.forEach(listener => listener(event));
+    if (!fromRemote) {
+      this.channel.postMessage(event);
     }
   }
 
   // User Methods
   getCurrentUser() {
     return this.currentUser;
+  }
+  
+  getUserById(id: string) {
+      return this.users.find(u => u.id === id);
+  }
+
+  validateUser(id: string, password: string): boolean {
+      const user = this.getUserById(id);
+      if (!user) return false;
+      const storedPassword = this.credentials.get(id);
+      return storedPassword === password;
   }
 
   setCurrentUser(userId: string) {
@@ -74,29 +126,87 @@ class MockStore {
       this.currentUser = user;
       localStorage.setItem('bomul_current_user_id', userId);
     } else {
-      // If passing empty or invalid, treat as logout
       this.currentUser = null;
       localStorage.removeItem('bomul_current_user_id');
     }
+    this.notify('USER_UPDATE', { user: this.currentUser });
   }
 
   logout() {
     this.currentUser = null;
     localStorage.removeItem('bomul_current_user_id');
+    this.notify('USER_UPDATE', { user: null });
   }
 
-  registerUser(user: User) {
-    this.users.push(user);
-    this.currentUser = user;
-    localStorage.setItem('bomul_current_user_id', user.id);
+  registerUser(user: User, password: string) {
+    const newUser = {
+        ...user,
+        ticketsPurchasedMonth: user.ticketsPurchasedMonth || 0,
+        quickCloseTickets: user.quickCloseTickets || 0,
+        xp: 0
+    };
+    this.users.push(newUser);
+    this.credentials.set(newUser.id, password);
+    
+    this.saveUsers();
+    this.saveCredentials();
+
+    this.currentUser = newUser;
+    localStorage.setItem('bomul_current_user_id', newUser.id);
+    this.notify('USER_UPDATE', { user: newUser });
   }
 
   subscribeUser(userId: string) {
     const user = this.users.find(u => u.id === userId);
     if (user) {
       user.isSubscribed = true;
-      user.quickCloseTickets += 3;
+      this.saveUsers();
+      this.notify('USER_UPDATE', { user });
     }
+  }
+  
+  buyTicket(userId: string): { success: boolean; message: string } {
+      const user = this.users.find(u => u.id === userId);
+      if (!user) return { success: false, message: 'User not found' };
+      
+      const currentPurchased = user.ticketsPurchasedMonth || 0;
+      const MAX_MONTHLY = 3;
+      
+      if (currentPurchased >= MAX_MONTHLY) {
+          return { success: false, message: `이번 달 구매 한도(${MAX_MONTHLY}장)를 초과하였습니다.` };
+      }
+      
+      user.quickCloseTickets = (user.quickCloseTickets || 0) + 1;
+      user.ticketsPurchasedMonth = currentPurchased + 1;
+      
+      this.saveUsers();
+      this.notify('USER_UPDATE', { user });
+      return { success: true, message: '도깨비 감투를 구매하였습니다.' };
+  }
+
+  // LEVEL SYSTEM LOGIC
+  getLevelInfo(xp: number) {
+    // Lv.1: 0 - 100
+    // Lv.2: 101 - 400
+    // Lv.3: 401+
+    if (xp <= 100) {
+        return { level: 1, title: '보따리 상인', nextXp: 100, progress: (xp / 100) * 100 };
+    } else if (xp <= 400) {
+        return { level: 2, title: '거상', nextXp: 400, progress: ((xp - 100) / 300) * 100 };
+    } else {
+        return { level: 3, title: '도깨비 상인', nextXp: 1000, progress: 100 };
+    }
+  }
+
+  addXp(userId: string, amount: number) {
+      const user = this.users.find(u => u.id === userId);
+      if (user) {
+          user.xp = (user.xp || 0) + amount;
+          this.saveUsers();
+          if (this.currentUser?.id === userId) {
+             this.notify('USER_UPDATE', { user });
+          }
+      }
   }
 
   // Product Methods
@@ -110,6 +220,7 @@ class MockStore {
 
   addProduct(product: Product) {
     this.products.push(product);
+    this.addXp(product.sellerId, 30); // Grant 30 XP for listing
   }
 
   deleteProduct(id: string) {
@@ -127,9 +238,9 @@ class MockStore {
       return { success: false, message: '현재 입찰가보다 높아야 합니다.' };
     }
 
-    const maxPrice = product.startPrice * 10;
+    const basePrice = product.costPrice || product.startPrice;
+    const maxPrice = basePrice * 10;
     
-    // Add Bid
     const newBid: Bid = {
       id: Math.random().toString(36).substr(2, 9),
       bidderId: bidder.id,
@@ -141,38 +252,37 @@ class MockStore {
     product.bids.push(newBid);
     product.currentPrice = amount;
 
-    // Check Max Cap
+    // Grant XP to bidder
+    this.addXp(bidder.id, 10);
+
     let eventType: 'BID_UPDATE' | 'AUCTION_CLOSED' = 'BID_UPDATE';
     if (amount >= maxPrice) {
       product.status = ProductStatus.SOLD;
       product.winnerId = bidder.id;
       eventType = 'AUCTION_CLOSED';
-      this.notify(eventType, productId);
-      return { success: true, message: '상한가 도달! 낙찰되었습니다.' };
+      this.addXp(bidder.id, 50); // Extra XP for winning
+      this.notify(eventType, { productId, product });
+      return { success: true, message: '상한가 도달! 즉시 낙찰되었습니다. (+60XP)' };
     }
 
-    this.notify(eventType, productId);
-    return { success: true, message: '입찰이 완료되었습니다.' };
+    this.notify(eventType, { productId, product });
+    return { success: true, message: '입찰이 완료되었습니다. (+10XP)' };
   }
 
-  // Buyer Tool: Quick Close (Instant Win)
   quickCloseAuction(productId: string, userId: string): { success: boolean; message: string } {
     const product = this.products.find(p => p.id === productId);
     const user = this.users.find(u => u.id === userId);
 
     if (!product || !user) return { success: false, message: 'Error' };
     
-    // Validation: Only buyers can use tickets, Seller cannot buy their own item
     if (product.sellerId === userId) return { success: false, message: '판매자는 본인의 상품을 즉시 낙찰받을 수 없습니다.' };
     
-    if (user.quickCloseTickets <= 0) return { success: false, message: '사용 가능한 티켓이 없습니다. 구독을 통해 충전해주세요.' };
+    if ((user.quickCloseTickets || 0) <= 0) return { success: false, message: '사용 가능한 티켓이 없습니다. 티켓을 구매해주세요.' };
     if (product.status !== ProductStatus.ACTIVE) return { success: false, message: '이미 종료된 경매입니다.' };
 
-    // Buyer wins immediately at current price
     product.status = ProductStatus.SOLD;
     product.winnerId = user.id;
     
-    // Create a system bid to record the win
     const winningBid: Bid = {
         id: 'ticket-' + Date.now(),
         bidderId: user.id,
@@ -182,10 +292,13 @@ class MockStore {
     };
     product.bids.push(winningBid);
 
-    user.quickCloseTickets -= 1;
+    user.quickCloseTickets = (user.quickCloseTickets || 0) - 1;
+    this.addXp(user.id, 50); // XP for winning
 
-    this.notify('AUCTION_CLOSED', productId);
-    return { success: true, message: '프리미엄 티켓을 사용하여 즉시 낙찰받았습니다!' };
+    this.notify('AUCTION_CLOSED', { productId, product });
+    this.notify('USER_UPDATE', { user }); // Update ticket count
+    this.saveUsers(); // Save ticket usage
+    return { success: true, message: '도깨비 감투를 사용하여 즉시 낙찰받았습니다! (+50XP)' };
   }
 
   buyNow(productId: string, buyerId: string) {
@@ -194,6 +307,7 @@ class MockStore {
     
     product.status = ProductStatus.SOLD;
     product.winnerId = buyerId;
+    this.addXp(buyerId, 50);
     return true;
   }
 }

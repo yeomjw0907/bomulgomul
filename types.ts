@@ -33,8 +33,10 @@ export interface User {
   role: UserRole;
   isSubscribed: boolean;
   quickCloseTickets: number;
+  ticketsPurchasedMonth: number;
   agreedToTerms: boolean;
   agreedToMarketing: boolean;
+  xp: number; // Added Experience Points
 }
 
 export interface Bid {
@@ -55,19 +57,16 @@ export interface Product {
   image: string;
   type: ProductType;
   status: ProductStatus;
-  startPrice: number; // For auction: starting price. For shop: fixed price.
-  currentPrice: number; // For auction: current bid. For shop: fixed price.
-  
-  // New Pricing Fields
-  originalPrice?: number; // 원가 (정가)
-  costPrice?: number;     // 매입가 (우리가 떼온 가격)
-  appraisedValue?: number; // 감정가
-
+  startPrice: number;
+  currentPrice: number;
+  originalPrice?: number;
+  costPrice?: number;
+  appraisedValue?: number;
   createdAt: number;
-  endsAt: number; // 30 days from creation
+  endsAt: number;
   bids: Bid[];
-  deliveryMethod: DeliveryMethod;
   winnerId?: string;
+  deliveryMethod: DeliveryMethod;
 }
 
-export const CATEGORIES = ['Electronics', 'Furniture', 'Clothing', 'Antiques', 'Books', 'Others'];
+export const CATEGORIES = ['Antiques', 'Furniture', 'Electronics', 'Art', 'Fashion', 'Others'];

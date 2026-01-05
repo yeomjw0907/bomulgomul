@@ -6,26 +6,30 @@ export const TAGLINE = "고물 안에서 보물을 찾아보세요";
 // Mock Data
 export const MOCK_USERS: User[] = [
   {
-    id: 'u1',
-    name: '김철수 (판매자)',
+    id: 'user1',
+    name: '김철수',
     phoneNumber: '010-1234-5678',
     address: '서울시 강남구 역삼동',
     role: UserRole.SELLER,
     isSubscribed: true,
-    quickCloseTickets: 3,
+    quickCloseTickets: 1,
+    ticketsPurchasedMonth: 2, 
     agreedToTerms: true,
-    agreedToMarketing: true
+    agreedToMarketing: true,
+    xp: 450 // Lv.3
   },
   {
-    id: 'u2',
-    name: '이영희 (구매자)',
+    id: 'user2',
+    name: '이영희',
     phoneNumber: '010-9876-5432',
     address: '경기도 성남시 분당구',
     role: UserRole.BUYER,
     isSubscribed: false,
     quickCloseTickets: 0,
+    ticketsPurchasedMonth: 0,
     agreedToTerms: true,
-    agreedToMarketing: false
+    agreedToMarketing: false,
+    xp: 60 // Lv.1
   },
   {
     id: 'admin',
@@ -35,15 +39,17 @@ export const MOCK_USERS: User[] = [
     role: UserRole.ADMIN,
     isSubscribed: false,
     quickCloseTickets: 999,
+    ticketsPurchasedMonth: 0,
     agreedToTerms: true,
-    agreedToMarketing: true
+    agreedToMarketing: true,
+    xp: 9999
   }
 ];
 
 export const INITIAL_PRODUCTS: Product[] = [
   {
     id: 'p1',
-    sellerId: 'u1',
+    sellerId: 'user1',
     sellerName: '김철수',
     title: '빈티지 필름 카메라 (Leica M3)',
     description: '1980년대 빈티지 카메라입니다. 렌즈 상태 아주 좋습니다. 수집가들에게 추천합니다.',
@@ -59,15 +65,15 @@ export const INITIAL_PRODUCTS: Product[] = [
     createdAt: Date.now() - 86400000 * 2, // 2 days ago
     endsAt: Date.now() + 86400000 * 28,
     bids: [
-        { id: 'b1', bidderId: 'u2', bidderName: '이영희', amount: 80000, timestamp: Date.now() - 80000000 },
+        { id: 'b1', bidderId: 'user2', bidderName: '이영희', amount: 80000, timestamp: Date.now() - 80000000 },
         { id: 'b2', bidderId: 'admin', bidderName: '박수집', amount: 100000, timestamp: Date.now() - 40000000 },
-        { id: 'b3', bidderId: 'u2', bidderName: '이영희', amount: 120000, timestamp: Date.now() - 10000 }
+        { id: 'b3', bidderId: 'user2', bidderName: '이영희', amount: 120000, timestamp: Date.now() - 10000 }
     ],
     deliveryMethod: DeliveryMethod.PARCEL
   },
   {
     id: 'p2',
-    sellerId: 'u1',
+    sellerId: 'user1',
     sellerName: '김철수',
     title: '이탈리아산 가죽 소파',
     description: '3년 사용한 가죽 소파입니다. 가죽 에이징이 멋스럽게 되었습니다.',
@@ -83,7 +89,7 @@ export const INITIAL_PRODUCTS: Product[] = [
     createdAt: Date.now() - 86400000 * 5,
     endsAt: Date.now() + 86400000 * 25,
     bids: [
-      { id: 'b1', bidderId: 'u2', bidderName: '이영희', amount: 150000, timestamp: Date.now() - 10000 }
+      { id: 'b1', bidderId: 'user2', bidderName: '이영희', amount: 150000, timestamp: Date.now() - 10000 }
     ],
     deliveryMethod: DeliveryMethod.PICKUP
   },
