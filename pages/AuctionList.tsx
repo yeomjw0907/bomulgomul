@@ -2,7 +2,11 @@ import React, { useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { store } from '../services/mockStore';
 import { ProductType, ProductStatus, CATEGORIES } from '../types';
-import { MessageCircle, Heart, Search, SlidersHorizontal, ChevronDown, ChevronUp, RefreshCw, Clock, Flame, Tag, DollarSign, Activity } from 'lucide-react';
+import { MessageCircle, Heart, Search, SlidersHorizontal, ChevronDown, ChevronUp, RefreshCw, Clock, Flame, Tag, DollarSign, Activity, ArrowUp, ArrowDown } from 'lucide-react';
+
+type TimeSort = 'NEWEST' | 'CLOSING_SOON' | null;
+type BidSort = 'MOST_BIDS' | 'FEWEST_BIDS' | 'RECENTLY_BIDDED' | null;
+type PriceSort = 'LOWEST_PRICE' | 'HIGHEST_PRICE' | null;
 
 export const AuctionList: React.FC = () => {
   const [searchParams] = useSearchParams();
@@ -11,13 +15,21 @@ export const AuctionList: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState(initialSearch);
   const [selectedCategory, setSelectedCategory] = useState('All');
   
-  // Expanded Sorting Options
-  const [sortBy, setSortBy] = useState<'NEWEST' | 'MOST_BIDS' | 'FEWEST_BIDS' | 'LOWEST_PRICE' | 'CLOSING_SOON' | 'RECENTLY_BIDDED'>('NEWEST');
+  // Independent Sorting States
+  const [sortState, setSortState] = useState<{
+      time: TimeSort;
+      bid: BidSort;
+      price: PriceSort;
+  }>({
+      time: 'NEWEST', // Default
+      bid: null,
+      price: null
+  });
   
   // Advanced Filter States
   const [showFilters, setShowFilters] = useState(false);
-  const [maxPriceFilter, setMaxPriceFilter] = useState(5000000); // Default Max 5 Million Won
-  const [maxAppraisedFilter, setMaxAppraisedFilter] = useState(10000000); // Default Max 10 Million Won
+  const [maxPriceFilter, setMaxPriceFilter] = useState(5000000); 
+  const [maxAppraisedFilter, setMaxAppraisedFilter] = useState(10000000);
 
   // Category Translation Map
   const categoryMap: Record<string, string> = {
@@ -29,7 +41,6 @@ export const AuctionList: React.FC = () => {
       'Others': '기타'
   };
 
-  // Helper to format currency for slider labels
   const formatCompactNumber = (number: number) => {
       return new Intl.NumberFormat('ko-KR', { notation: "compact", maximumFractionDigits: 1 }).format(number);
   };
@@ -51,29 +62,91 @@ export const AuctionList: React.FC = () => {
           );
       }
 
+      // Multi-criteria Sort
+      // Priority: Time > Price > Bid (Waterfall)
       return filtered.sort((a, b) => {
-          switch (sortBy) {
-              case 'NEWEST': 
-                return b.createdAt - a.createdAt;
-              case 'MOST_BIDS': 
-                return b.bids.length - a.bids.length;
-              case 'FEWEST_BIDS': 
-                return a.bids.length - b.bids.length;
-              case 'LOWEST_PRICE': 
-                return a.currentPrice - b.currentPrice;
-              case 'CLOSING_SOON':
-                return a.endsAt - b.endsAt;
-              case 'RECENTLY_BIDDED':
-                 // Get latest bid timestamp or fallback to creation time
-                 const aLast = a.bids.length > 0 ? a.bids[a.bids.length - 1].timestamp : 0;
-                 const bLast = b.bids.length > 0 ? b.bids[b.bids.length - 1].timestamp : 0;
-                 return bLast - aLast;
-              default: return 0;
+          // 1. Time Sort
+          if (sortState.time) {
+              if (sortState.time === 'NEWEST') {
+                  const diff = b.createdAt - a.createdAt;
+                  if (diff !== 0) return diff;
+              } else if (sortState.time === 'CLOSING_SOON') {
+                  const diff = a.endsAt - b.endsAt;
+                  if (diff !== 0) return diff;
+              }
           }
+
+          // 2. Price Sort
+          if (sortState.price) {
+              if (sortState.price === 'LOWEST_PRICE') {
+                  const diff = a.currentPrice - b.currentPrice;
+                  if (diff !== 0) return diff;
+              } else if (sortState.price === 'HIGHEST_PRICE') {
+                  const diff = b.currentPrice - a.currentPrice;
+                  if (diff !== 0) return diff;
+              }
+          }
+
+          // 3. Bid Sort
+          if (sortState.bid) {
+              if (sortState.bid === 'MOST_BIDS') {
+                  const diff = b.bids.length - a.bids.length;
+                  if (diff !== 0) return diff;
+              } else if (sortState.bid === 'FEWEST_BIDS') {
+                  const diff = a.bids.length - b.bids.length;
+                  if (diff !== 0) return diff;
+              } else if (sortState.bid === 'RECENTLY_BIDDED') {
+                  const aLast = a.bids.length > 0 ? a.bids[a.bids.length - 1].timestamp : 0;
+                  const bLast = b.bids.length > 0 ? b.bids[b.bids.length - 1].timestamp : 0;
+                  const diff = bLast - aLast;
+                  if (diff !== 0) return diff;
+              }
+          }
+
+          return 0;
       });
   };
 
   const filteredProducts = getFilteredAndSortedProducts();
+
+  const handleResetFilters = () => {
+      setMaxPriceFilter(5000000);
+      setMaxAppraisedFilter(10000000);
+      setSortState({ time: 'NEWEST', bid: null, price: null });
+  };
+
+  const toggleSort = (category: 'time' | 'bid' | 'price', value: string) => {
+      setSortState(prev => ({
+          ...prev,
+          [category]: prev[category] === value ? null : value
+      }));
+  };
+
+  // Helper component for sort buttons
+  const SortButton = ({ 
+      isActive, 
+      onClick, 
+      label, 
+      icon: Icon 
+  }: { 
+      isActive: boolean, 
+      onClick: () => void, 
+      label: string, 
+      icon?: any 
+  }) => (
+    <button 
+        onClick={onClick} 
+        className={`
+            flex-1 py-2.5 px-3 rounded-lg text-xs font-bold border transition-all flex items-center justify-center gap-1.5
+            ${isActive
+                ? 'bg-treasure-gold text-black border-treasure-gold shadow-md' 
+                : 'bg-[#2a2a2a] text-gray-400 border-gray-600 hover:bg-[#333] hover:border-gray-500'}
+        `}
+    >
+        {Icon && <Icon size={14} />}
+        {label}
+    </button>
+  );
 
   return (
     <div className="pb-10 min-h-screen relative">
@@ -97,33 +170,36 @@ export const AuctionList: React.FC = () => {
                 className={`px-4 rounded-lg border flex items-center gap-2 font-bold text-sm transition-all ${showFilters ? 'bg-treasure-gold text-black border-treasure-gold' : 'bg-[#1a1a1a] text-gray-400 border-gray-600 hover:border-gray-400'}`}
              >
                 <SlidersHorizontal size={18} />
-                <span className="hidden md:inline">고급옵션</span>
+                <span className="hidden md:inline">필터</span>
                 {showFilters ? <ChevronUp size={16}/> : <ChevronDown size={16}/>}
              </button>
          </div>
 
          {/* Advanced Filters Panel (Collapsible) */}
          {showFilters && (
-             <div className="px-4 py-4 bg-[#1a1a1a] border-t border-gray-800 animate-in slide-in-from-top-2 duration-200">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-4">
+             <div className="px-4 py-4 bg-[#1a1a1a] border-t border-gray-800 animate-in slide-in-from-top-2 duration-200 shadow-2xl">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-6">
                     {/* Current Price Slider */}
                     <div>
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex justify-between items-center mb-3">
                             <label className="text-xs font-bold text-gray-400 flex items-center gap-1">
-                                <DollarSign size={12}/> 최대 입찰가 범위
+                                <DollarSign size={14}/> 최대 입찰가 범위
                             </label>
-                            <span className="text-sm font-black text-treasure-gold">{formatCompactNumber(maxPriceFilter)}원 이하</span>
+                            <span className="text-base font-black text-treasure-gold">{formatCompactNumber(maxPriceFilter)}원 이하</span>
                         </div>
-                        <input 
-                            type="range" 
-                            min="10000" 
-                            max="5000000" 
-                            step="10000" 
-                            value={maxPriceFilter}
-                            onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-treasure-gold hover:accent-yellow-400"
-                        />
-                        <div className="flex justify-between text-[10px] text-gray-600 mt-1 font-mono">
+                        <div className="relative h-6 flex items-center">
+                            {/* Track background lightened to bg-gray-300 for better visibility */}
+                            <input 
+                                type="range" 
+                                min="10000" 
+                                max="5000000" 
+                                step="10000" 
+                                value={maxPriceFilter}
+                                onChange={(e) => setMaxPriceFilter(Number(e.target.value))}
+                                className="w-full h-4 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-treasure-gold hover:accent-yellow-400 focus:outline-none focus:ring-2 focus:ring-treasure-gold/50"
+                            />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-gray-500 mt-1 font-mono font-bold">
                             <span>1만원</span>
                             <span>500만원+</span>
                         </div>
@@ -131,52 +207,102 @@ export const AuctionList: React.FC = () => {
 
                     {/* Appraised Value Slider */}
                     <div>
-                        <div className="flex justify-between items-center mb-2">
+                        <div className="flex justify-between items-center mb-3">
                             <label className="text-xs font-bold text-gray-400 flex items-center gap-1">
-                                <Tag size={12}/> 전문가 감정가 범위
+                                <Tag size={14}/> 전문가 감정가 범위
                             </label>
-                            <span className="text-sm font-black text-goblin-red">{formatCompactNumber(maxAppraisedFilter)}원 이하</span>
+                            <span className="text-base font-black text-goblin-red">{formatCompactNumber(maxAppraisedFilter)}원 이하</span>
                         </div>
-                        <input 
-                            type="range" 
-                            min="100000" 
-                            max="10000000" 
-                            step="100000" 
-                            value={maxAppraisedFilter}
-                            onChange={(e) => setMaxAppraisedFilter(Number(e.target.value))}
-                            className="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer accent-goblin-red hover:accent-red-500"
-                        />
-                        <div className="flex justify-between text-[10px] text-gray-600 mt-1 font-mono">
+                        <div className="relative h-6 flex items-center">
+                            {/* Track background lightened to bg-gray-300 for better visibility */}
+                            <input 
+                                type="range" 
+                                min="100000" 
+                                max="10000000" 
+                                step="100000" 
+                                value={maxAppraisedFilter}
+                                onChange={(e) => setMaxAppraisedFilter(Number(e.target.value))}
+                                className="w-full h-4 bg-gray-300 rounded-lg appearance-none cursor-pointer accent-goblin-red hover:accent-red-500 focus:outline-none focus:ring-2 focus:ring-goblin-red/50"
+                            />
+                        </div>
+                        <div className="flex justify-between text-[11px] text-gray-500 mt-1 font-mono font-bold">
                             <span>10만원</span>
                             <span>1,000만원+</span>
                         </div>
                     </div>
                 </div>
 
-                {/* Granular Sorting Options as Grid */}
-                <div>
-                    <label className="text-xs font-bold text-gray-400 mb-2 block">상세 정렬 기준</label>
-                    <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                         <button onClick={() => setSortBy('NEWEST')} className={`py-2 rounded text-xs font-bold border transition-all ${sortBy === 'NEWEST' ? 'bg-gray-200 text-black border-white' : 'bg-[#222] text-gray-500 border-gray-700 hover:bg-[#333]'}`}>
-                            ✨ 최신순
-                         </button>
-                         <button onClick={() => setSortBy('CLOSING_SOON')} className={`py-2 rounded text-xs font-bold border transition-all flex items-center justify-center gap-1 ${sortBy === 'CLOSING_SOON' ? 'bg-red-100 text-red-600 border-red-200' : 'bg-[#222] text-gray-500 border-gray-700 hover:bg-[#333]'}`}>
-                            <Clock size={12}/> 마감임박
-                         </button>
-                         <button onClick={() => setSortBy('RECENTLY_BIDDED')} className={`py-2 rounded text-xs font-bold border transition-all flex items-center justify-center gap-1 ${sortBy === 'RECENTLY_BIDDED' ? 'bg-blue-100 text-blue-600 border-blue-200' : 'bg-[#222] text-gray-500 border-gray-700 hover:bg-[#333]'}`}>
-                            <Activity size={12}/> 최근입찰
-                         </button>
-                         <button onClick={() => setSortBy('MOST_BIDS')} className={`py-2 rounded text-xs font-bold border transition-all flex items-center justify-center gap-1 ${sortBy === 'MOST_BIDS' ? 'bg-orange-100 text-orange-600 border-orange-200' : 'bg-[#222] text-gray-500 border-gray-700 hover:bg-[#333]'}`}>
-                            <Flame size={12}/> 입찰많은
-                         </button>
-                         <button onClick={() => setSortBy('FEWEST_BIDS')} className={`py-2 rounded text-xs font-bold border transition-all ${sortBy === 'FEWEST_BIDS' ? 'bg-gray-200 text-black border-white' : 'bg-[#222] text-gray-500 border-gray-700 hover:bg-[#333]'}`}>
-                            💧 입찰적은
-                         </button>
-                         <button onClick={() => setSortBy('LOWEST_PRICE')} className={`py-2 rounded text-xs font-bold border transition-all ${sortBy === 'LOWEST_PRICE' ? 'bg-gray-200 text-black border-white' : 'bg-[#222] text-gray-500 border-gray-700 hover:bg-[#333]'}`}>
-                            💰 최저가
-                         </button>
+                {/* Categorized Sorting Options - Independent Selection */}
+                <div className="space-y-4 mb-6">
+                    {/* Time Sort */}
+                    <div>
+                        <div className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider flex items-center gap-1"><Clock size={10}/> 시간순</div>
+                        <div className="flex gap-2">
+                             <SortButton 
+                                isActive={sortState.time === 'NEWEST'} 
+                                onClick={() => toggleSort('time', 'NEWEST')} 
+                                label="최신 등록순" 
+                             />
+                             <SortButton 
+                                isActive={sortState.time === 'CLOSING_SOON'} 
+                                onClick={() => toggleSort('time', 'CLOSING_SOON')} 
+                                label="마감 임박순" 
+                                icon={Clock} 
+                             />
+                        </div>
+                    </div>
+
+                    {/* Bid Sort */}
+                    <div>
+                        <div className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider flex items-center gap-1"><Flame size={10}/> 입찰순</div>
+                        <div className="flex gap-2">
+                             <SortButton 
+                                isActive={sortState.bid === 'MOST_BIDS'} 
+                                onClick={() => toggleSort('bid', 'MOST_BIDS')} 
+                                label="입찰 많은순" 
+                                icon={Flame} 
+                             />
+                             <SortButton 
+                                isActive={sortState.bid === 'FEWEST_BIDS'} 
+                                onClick={() => toggleSort('bid', 'FEWEST_BIDS')} 
+                                label="입찰 적은순" 
+                             />
+                             <SortButton 
+                                isActive={sortState.bid === 'RECENTLY_BIDDED'} 
+                                onClick={() => toggleSort('bid', 'RECENTLY_BIDDED')} 
+                                label="최근 입찰순" 
+                                icon={Activity} 
+                             />
+                        </div>
+                    </div>
+
+                    {/* Price Sort */}
+                    <div>
+                        <div className="text-[10px] font-bold text-gray-500 mb-2 uppercase tracking-wider flex items-center gap-1"><DollarSign size={10}/> 가격순</div>
+                        <div className="flex gap-2">
+                             <SortButton 
+                                isActive={sortState.price === 'HIGHEST_PRICE'} 
+                                onClick={() => toggleSort('price', 'HIGHEST_PRICE')} 
+                                label="가격 높은순" 
+                                icon={ArrowUp} 
+                             />
+                             <SortButton 
+                                isActive={sortState.price === 'LOWEST_PRICE'} 
+                                onClick={() => toggleSort('price', 'LOWEST_PRICE')} 
+                                label="가격 낮은순" 
+                                icon={ArrowDown} 
+                             />
+                        </div>
                     </div>
                 </div>
+
+                {/* Reset Button */}
+                <button 
+                    onClick={handleResetFilters}
+                    className="w-full py-3 rounded-lg bg-[#333] hover:bg-[#444] text-gray-300 font-bold text-sm border border-gray-600 transition flex items-center justify-center gap-2"
+                >
+                    <RefreshCw size={16}/> 모든 필터 및 정렬 초기화
+                </button>
              </div>
          )}
 
@@ -198,26 +324,6 @@ export const AuctionList: React.FC = () => {
                 </button>
             ))}
          </div>
-         
-         {/* Active Filters Summary */}
-         {(maxPriceFilter < 5000000 || maxAppraisedFilter < 10000000 || sortBy !== 'NEWEST') && !showFilters && (
-             <div className="px-4 py-2 bg-[#222] border-t border-gray-800 flex items-center gap-2 overflow-x-auto thin-scrollbar">
-                <span className="text-[10px] text-gray-500 font-bold shrink-0">적용중:</span>
-                {maxPriceFilter < 5000000 && <span className="text-[10px] bg-gray-700 px-2 py-0.5 rounded text-gray-300 whitespace-nowrap">~{formatCompactNumber(maxPriceFilter)}원</span>}
-                {maxAppraisedFilter < 10000000 && <span className="text-[10px] bg-gray-700 px-2 py-0.5 rounded text-gray-300 whitespace-nowrap">감정가 ~{formatCompactNumber(maxAppraisedFilter)}원</span>}
-                {sortBy !== 'NEWEST' && <span className="text-[10px] bg-goblin-red/20 text-goblin-red px-2 py-0.5 rounded font-bold whitespace-nowrap">{
-                    sortBy === 'CLOSING_SOON' ? '마감임박순' :
-                    sortBy === 'RECENTLY_BIDDED' ? '최근입찰순' :
-                    sortBy === 'MOST_BIDS' ? '입찰많은순' : 
-                    sortBy === 'LOWEST_PRICE' ? '최저가순' : sortBy
-                }</span>}
-                <button onClick={() => {
-                    setMaxPriceFilter(5000000);
-                    setMaxAppraisedFilter(10000000);
-                    setSortBy('NEWEST');
-                }} className="ml-auto text-[10px] text-gray-500 underline whitespace-nowrap">초기화</button>
-             </div>
-         )}
       </div>
 
       {/* Feed List */}
@@ -282,15 +388,13 @@ export const AuctionList: React.FC = () => {
           <p className="text-gray-500 font-medium">조건에 맞는 물건이 없습니다.</p>
           <button 
             onClick={() => {
-                setMaxPriceFilter(5000000);
-                setMaxAppraisedFilter(10000000);
-                setSortBy('NEWEST');
+                handleResetFilters();
                 setSelectedCategory('All');
                 setSearchTerm('');
             }}
             className="mt-4 flex items-center gap-2 text-treasure-gold text-sm font-bold hover:underline"
           >
-              <RefreshCw size={14}/> 필터 초기화
+              <RefreshCw size={14}/> 필터 및 검색 초기화
           </button>
         </div>
       )}
