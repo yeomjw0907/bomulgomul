@@ -113,11 +113,11 @@ export const AuctionDetail: React.FC = () => {
   return (
     <div className="bg-vintage-charcoal min-h-screen pb-32 md:pb-12 relative">
       
-      {/* Mobile Header (Floating) */}
-      <div className="fixed top-0 left-0 right-0 z-50 p-4 flex justify-between items-center md:hidden pointer-events-none">
-          <button onClick={() => navigate(-1)} className="pointer-events-auto text-white drop-shadow-lg bg-black/40 p-2.5 rounded-full backdrop-blur-md hover:bg-black/60 transition"><ChevronLeft size={24} /></button>
+      {/* Mobile Header (Floating with Safe Area Fix) */}
+      <div className="fixed top-0 left-0 right-0 z-50 p-4 pt-[calc(env(safe-area-inset-top)+1rem)] flex justify-between items-center md:hidden pointer-events-none">
+          <button onClick={() => navigate(-1)} className="pointer-events-auto text-white drop-shadow-md bg-black/30 p-2 rounded-full backdrop-blur-md hover:bg-black/50 transition border border-white/10"><ChevronLeft size={24} /></button>
           <div className="flex gap-3 pointer-events-auto">
-             <button className="text-white drop-shadow-lg bg-black/40 p-2.5 rounded-full backdrop-blur-md hover:bg-black/60 transition"><Share size={20} /></button>
+             <button className="text-white drop-shadow-md bg-black/30 p-2 rounded-full backdrop-blur-md hover:bg-black/50 transition border border-white/10"><Share size={20} /></button>
           </div>
       </div>
 
@@ -129,7 +129,7 @@ export const AuctionDetail: React.FC = () => {
                 <img src={product.image} alt={product.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 
                 {/* Live Status Badge */}
-                <div className="absolute top-4 left-4 z-20 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
+                <div className="absolute top-[calc(env(safe-area-inset-top)+4rem)] md:top-4 left-4 z-20 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
                    <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                    <span className="text-[11px] font-bold text-white tracking-wide">{isConnected ? 'LIVE AUCTION' : 'OFFLINE'}</span>
                 </div>
@@ -325,11 +325,11 @@ export const AuctionDetail: React.FC = () => {
          </div>
       </div>
 
-      {/* Bid Modal (Revised) */}
+      {/* Bid Modal (Revised for Safe Area & Overflow) */}
       {isBidModalOpen && (
-          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center p-4">
-              <div className="absolute inset-0 bg-black/90 backdrop-blur-sm transition-opacity" onClick={() => setIsBidModalOpen(false)}></div>
-              <div className="bg-antique-white w-full max-w-md rounded-2xl p-6 z-10 animate-in slide-in-from-bottom-10 duration-300 text-[#2C2C2C] relative overflow-hidden shadow-2xl">
+          <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
+              <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setIsBidModalOpen(false)}></div>
+              <div className="bg-antique-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 pb-safe z-10 animate-in slide-in-from-bottom-10 duration-300 text-[#2C2C2C] relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto">
                   
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-heading font-bold text-gray-900">입찰 참여</h3>
