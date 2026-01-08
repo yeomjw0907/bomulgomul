@@ -1,8 +1,8 @@
 import { INITIAL_PRODUCTS, MOCK_USERS } from '../constants';
-import { Product, User, Bid, ProductType, ProductStatus, UserRole } from '../types';
+import { Product, User, Bid, ProductType, ProductStatus, UserRole, Report, ReportStatus } from '../types';
 
 type StoreEvent = {
-  type: 'BID_UPDATE' | 'AUCTION_CLOSED' | 'USER_UPDATE';
+  type: 'BID_UPDATE' | 'AUCTION_CLOSED' | 'USER_UPDATE' | 'REPORT_UPDATE';
   productId?: string;
   product?: Product;
   user?: User | null;
@@ -16,6 +16,28 @@ class MockStore {
   private currentUser: User | null = null;
   private listeners: Set<StoreListener> = new Set();
   private channel: BroadcastChannel;
+  
+  // Mock Reports
+  private reports: Report[] = [
+      {
+          id: 'r1',
+          targetId: 'p1',
+          targetType: 'PRODUCT',
+          reporterId: 'user2',
+          reason: '가품이 의심됩니다. 전문가 감정 다시 해주세요.',
+          status: ReportStatus.PENDING,
+          timestamp: Date.now() - 10000000
+      },
+      {
+          id: 'r2',
+          targetId: 'user1',
+          targetType: 'USER',
+          reporterId: 'user2',
+          reason: '채팅에서 욕설을 했습니다.',
+          status: ReportStatus.RESOLVED,
+          timestamp: Date.now() - 50000000
+      }
+  ];
   
   // In-memory password storage (synced to LS)
   private credentials = new Map<string, string>();
@@ -61,7 +83,7 @@ class MockStore {
       if (type === 'USER_UPDATE') {
           // Sync user state across tabs if needed, though mostly local
       } else {
-          this.handleRemoteUpdate(type, productId, product);
+          this.handleRemoteUpdate(type as any, productId!, product!);
       }
     };
   }
@@ -225,6 +247,30 @@ class MockStore {
 
   deleteProduct(id: string) {
     this.products = this.products.filter(p => p.id !== id);
+  }
+
+  // Report Methods
+  getReports() {
+      return this.reports;
+  }
+
+  addReport(reportData: { targetId: string, targetType: 'PRODUCT' | 'USER', reporterId: string, reason: string }) {
+      const newReport: Report = {
+          ...reportData,
+          id: 'r' + Date.now() + Math.random().toString(36).substr(2, 5),
+          status: ReportStatus.PENDING,
+          timestamp: Date.now()
+      };
+      this.reports.unshift(newReport);
+      this.notify('REPORT_UPDATE');
+  }
+
+  updateReportStatus(id: string, status: ReportStatus) {
+      const report = this.reports.find(r => r.id === id);
+      if(report) {
+          report.status = status;
+          this.notify('REPORT_UPDATE');
+      }
   }
 
   // Auction Logic

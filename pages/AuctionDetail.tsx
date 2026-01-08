@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { store } from '../services/mockStore';
 import { Product, ProductStatus } from '../types';
-import { ChevronLeft, Share, Heart, X, Wifi, Clock, ArrowUp, Ticket, Crown, Gavel, AlertCircle, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Share, Heart, X, Wifi, Clock, ArrowUp, Ticket, Crown, Gavel, AlertCircle, TrendingUp, Siren } from 'lucide-react';
+import { ReportModal } from '../components/ReportModal';
 
 export const AuctionDetail: React.FC = () => {
   const { id } = useParams<{ id: string }>();
@@ -10,6 +11,7 @@ export const AuctionDetail: React.FC = () => {
   const [product, setProduct] = useState<Product | undefined>(store.getProductById(id!));
   const [now, setNow] = useState(Date.now());
   const [isBidModalOpen, setIsBidModalOpen] = useState(false);
+  const [isReportModalOpen, setIsReportModalOpen] = useState(false);
   const [bidAmount, setBidAmount] = useState<number>(0);
 
   // WebSocket / Real-time States
@@ -111,27 +113,31 @@ export const AuctionDetail: React.FC = () => {
   const isEnded = timeLeft <= 0;
 
   return (
-    <div className="bg-vintage-charcoal min-h-screen pb-32 md:pb-12 relative">
+    <div className="bg-vintage-charcoal min-h-screen pb-32 md:pb-12 relative text-gray-200">
       
       {/* Mobile Header (Floating with Safe Area Fix) */}
       <div className="fixed top-0 left-0 right-0 z-50 p-4 pt-[calc(env(safe-area-inset-top)+1rem)] flex justify-between items-center md:hidden pointer-events-none">
           <button onClick={() => navigate(-1)} className="pointer-events-auto text-white drop-shadow-md bg-black/30 p-2 rounded-full backdrop-blur-md hover:bg-black/50 transition border border-white/10"><ChevronLeft size={24} /></button>
           <div className="flex gap-3 pointer-events-auto">
+             <button onClick={() => setIsReportModalOpen(true)} className="text-white drop-shadow-md bg-black/30 p-2 rounded-full backdrop-blur-md hover:bg-black/50 transition border border-white/10"><Siren size={20} className="text-red-400"/></button>
              <button className="text-white drop-shadow-md bg-black/30 p-2 rounded-full backdrop-blur-md hover:bg-black/50 transition border border-white/10"><Share size={20} /></button>
           </div>
       </div>
 
-      <div className="max-w-6xl mx-auto md:pt-8 md:px-4 lg:flex lg:gap-8">
+      <div className="max-w-7xl mx-auto md:pt-8 md:px-6 lg:flex lg:gap-10">
         
-        {/* Left Column: Image */}
-        <div className="lg:w-[55%] relative">
-             <div className="w-full aspect-[4/3] md:rounded-2xl overflow-hidden bg-[#222] shadow-2xl relative group">
+        {/* Left Column: Image & Visuals */}
+        <div className="lg:w-[60%] relative">
+             <div className="w-full aspect-[4/3] md:rounded-3xl overflow-hidden bg-[#222] shadow-2xl relative group border border-white/5">
                 <img src={product.image} alt={product.title} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
                 
                 {/* Live Status Badge */}
-                <div className="absolute top-[calc(env(safe-area-inset-top)+4rem)] md:top-4 left-4 z-20 flex items-center gap-2 bg-black/70 backdrop-blur-md px-3 py-1.5 rounded-full border border-white/10 shadow-lg">
-                   <div className={`w-2 h-2 rounded-full ${isConnected ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
-                   <span className="text-[11px] font-bold text-white tracking-wide">{isConnected ? 'LIVE AUCTION' : 'OFFLINE'}</span>
+                <div className="absolute top-[calc(env(safe-area-inset-top)+4rem)] md:top-6 left-6 z-20 flex items-center gap-2 bg-black/60 backdrop-blur-md px-4 py-2 rounded-full border border-white/10 shadow-lg">
+                   <span className="relative flex h-3 w-3">
+                      <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${isConnected ? 'bg-green-400' : 'bg-red-400'}`}></span>
+                      <span className={`relative inline-flex rounded-full h-3 w-3 ${isConnected ? 'bg-green-500' : 'bg-red-500'}`}></span>
+                   </span>
+                   <span className="text-xs font-bold text-white tracking-wider">{isConnected ? 'LIVE AUCTION' : 'OFFLINE'}</span>
                 </div>
 
                 {/* Status Overlay */}
@@ -146,20 +152,24 @@ export const AuctionDetail: React.FC = () => {
                 )}
              </div>
              
-             {/* Desktop Back Button */}
-             <button onClick={() => navigate(-1)} className="hidden md:flex absolute -top-12 left-0 text-gray-400 hover:text-white items-center gap-1 font-bold transition">
-                <ChevronLeft size={20}/> 돌아가기
-             </button>
+             {/* Desktop Navigation & Actions */}
+             <div className="hidden md:flex justify-between items-center mt-4">
+                 <button onClick={() => navigate(-1)} className="text-gray-400 hover:text-white flex items-center gap-2 font-bold transition">
+                    <ChevronLeft size={20}/> 목록으로 돌아가기
+                 </button>
+                 <div className="flex gap-4">
+                     <button onClick={() => setIsReportModalOpen(true)} className="text-gray-500 hover:text-red-400 flex items-center gap-2 font-bold text-sm transition">
+                        <Siren size={16}/> 신고하기
+                     </button>
+                 </div>
+             </div>
         </div>
 
         {/* Right Column: Info Card (The "Paper") */}
-        <div className="lg:w-[45%] mt-6 lg:mt-0 relative z-10">
-            <div className="bg-antique-white rounded-t-3xl md:rounded-2xl overflow-hidden shadow-2xl text-[#2C2C2C] relative min-h-[600px]">
-                {/* Top Decorative Line */}
-                <div className="h-1.5 bg-gradient-to-r from-goblin-red via-red-800 to-goblin-red"></div>
-
+        <div className="lg:w-[40%] mt-6 lg:mt-0 relative z-10 flex flex-col">
+            <div className="bg-[#EAEAEA] rounded-t-3xl md:rounded-3xl overflow-hidden shadow-2xl text-[#2C2C2C] flex-1 flex flex-col border border-gray-400">
                 {/* Timer Header */}
-                <div className="bg-[#1a1a1a] p-5 flex justify-between items-center text-white border-b border-[#333]">
+                <div className="bg-[#1a1a1a] p-5 flex justify-between items-center text-white">
                    <div className="flex items-center gap-3">
                       <div className={`p-2 rounded-full ${isEnded ? 'bg-gray-700' : 'bg-red-900/40 text-goblin-red animate-pulse'}`}>
                         <Clock size={20} className={isEnded ? "text-gray-400" : "text-goblin-red"}/>
@@ -176,107 +186,105 @@ export const AuctionDetail: React.FC = () => {
                           )}
                       </div>
                    </div>
-                   <div className="hidden md:flex items-center gap-1.5 bg-black/50 px-3 py-1 rounded-full border border-white/10">
-                      <Wifi size={14} className={isConnected ? "text-green-500" : "text-red-500"} />
-                      <span className="text-[10px] text-gray-400 font-bold">{isConnected ? '실시간 연결됨' : '연결 중...'}</span>
-                   </div>
                 </div>
+                
+                {/* Gradient Separator */}
+                <div className="h-1 bg-gradient-to-r from-goblin-red via-red-800 to-goblin-red"></div>
 
                 {/* Scrollable Content Area */}
-                <div className="overflow-y-auto max-h-[calc(100vh-350px)] lg:max-h-[600px] pb-24">
+                <div className="overflow-y-auto max-h-[calc(100vh-350px)] lg:max-h-[600px] flex-1">
                     
-                    {/* Seller & Title */}
-                    <div className="p-6 md:p-8 border-b border-gray-200/60">
+                    {/* Main Info */}
+                    <div className="p-6 md:p-8">
                         <div className="flex items-center gap-3 mb-4">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-gray-700 to-black text-treasure-gold flex items-center justify-center font-bold text-sm shadow-md">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-br from-gray-700 to-black text-treasure-gold flex items-center justify-center font-bold text-sm shadow-md ring-2 ring-gray-300">
                                 {product.sellerName[0]}
                             </div>
-                            <div className="text-xs">
-                                <span className="font-bold text-gray-800 block">{product.sellerName}</span>
-                                <span className="text-gray-500">도깨비 상인 · 신용도 높음</span>
+                            <div>
+                                <span className="font-bold text-gray-800 block text-sm">{product.sellerName}</span>
+                                <span className="text-xs text-gray-500 font-medium">도깨비 상인 · 신용도 높음</span>
                             </div>
                         </div>
                         
-                        <div className="inline-block px-2 py-1 rounded bg-gray-200 text-gray-600 text-[10px] font-bold mb-2">
+                        <div className="inline-block px-2.5 py-1 rounded-md bg-[#2C2C2C] text-treasure-gold text-[10px] font-bold mb-3 tracking-wide uppercase">
                             {product.category}
                         </div>
-                        <h1 className="text-2xl md:text-3xl font-heading font-black text-gray-900 leading-tight mb-2">
+                        <h1 className="text-2xl md:text-3xl font-heading font-black text-gray-900 leading-tight mb-4">
                             {product.title}
                         </h1>
-                        <p className="text-sm text-gray-600 leading-relaxed font-sans whitespace-pre-line">
+                        <p className="text-sm text-gray-600 leading-relaxed font-sans whitespace-pre-line border-l-2 border-gray-300 pl-4">
                             {product.description}
                         </p>
                     </div>
 
-                    {/* Price Spec Sheet (Certificate Style) */}
-                    <div className="px-6 py-6 bg-[#E8E8D0]/50 border-b border-gray-200/60">
-                        <div className="flex items-center gap-2 mb-4">
-                             <TrendingUp size={16} className="text-gray-500"/>
-                             <h3 className="font-bold text-gray-700 text-sm">감정가 분석 보고서</h3>
-                        </div>
-                        <div className="grid grid-cols-3 gap-3">
-                            <div className="bg-white p-3 rounded border border-gray-200 text-center shadow-sm">
-                                <div className="text-[10px] text-gray-400 font-bold mb-1">정가 (Market Price)</div>
-                                <div className="font-bold text-gray-600 text-sm line-through decoration-gray-400/50">
+                    {/* Valuation Grid */}
+                    <div className="px-6 pb-6">
+                        <div className="grid grid-cols-2 gap-3">
+                            <div className="bg-white p-4 rounded-xl border border-gray-200 shadow-sm">
+                                <div className="text-[10px] text-gray-400 font-bold mb-1 uppercase">Market Price</div>
+                                <div className="font-bold text-gray-500 text-sm line-through decoration-gray-400/50">
                                     {product.originalPrice ? product.originalPrice.toLocaleString() : '-'}
                                 </div>
                             </div>
-                            <div className="bg-white p-3 rounded border border-gray-200 text-center shadow-sm">
-                                <div className="text-[10px] text-gray-400 font-bold mb-1">매입가 (Cost)</div>
-                                <div className="font-bold text-gray-600 text-sm">
-                                    {product.costPrice ? product.costPrice.toLocaleString() : '-'}
-                                </div>
-                            </div>
-                            <div className="bg-white p-3 rounded border border-treasure-gold/50 text-center shadow-sm relative overflow-hidden ring-2 ring-treasure-gold/20">
-                                <div className="absolute top-0 right-0 w-8 h-8 bg-treasure-gold/20 rounded-bl-full"></div>
-                                <div className="text-[10px] text-yellow-700 font-black mb-1 relative z-10">전문가 감정가</div>
-                                <div className="font-black text-goblin-red text-sm relative z-10">
+                            <div className="bg-white p-4 rounded-xl border border-treasure-gold/40 shadow-sm relative overflow-hidden group">
+                                <div className="absolute top-0 right-0 w-10 h-10 bg-treasure-gold/20 rounded-bl-full transition-transform group-hover:scale-110"></div>
+                                <div className="text-[10px] text-yellow-700 font-black mb-1 uppercase relative z-10">Expert Value</div>
+                                <div className="font-black text-goblin-red text-lg relative z-10 flex items-center gap-1">
                                     {product.appraisedValue ? product.appraisedValue.toLocaleString() : '-'}
+                                    <span className="text-[10px] text-gray-400 font-normal">KRW</span>
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Bid History (Ledger Style) */}
-                    <div className="px-6 py-6">
+                    {/* Bid History */}
+                    <div className="bg-white/50 border-t border-gray-200 p-6 flex-1 min-h-[300px]">
                         <div className="flex items-center justify-between mb-4">
                             <h3 className="font-heading font-bold text-gray-800 flex items-center gap-2">
-                                <Gavel size={18}/> 입찰 기록부
+                                <Gavel size={18} className="text-gray-600"/> 입찰 기록
                             </h3>
-                            <span className="text-xs font-bold bg-gray-200 text-gray-600 px-2 py-0.5 rounded-full">
-                                {sortedBids.length} bids
+                            <span className="text-xs font-bold bg-[#2C2C2C] text-white px-2.5 py-1 rounded-full">
+                                Total {sortedBids.length}
                             </span>
                         </div>
 
-                        <div className="space-y-3 relative">
-                            {/* Connecting Line */}
-                            <div className="absolute left-[19px] top-4 bottom-4 w-0.5 bg-gray-200"></div>
-
+                        <div className="space-y-2 relative">
                             {sortedBids.length > 0 ? (
                                 sortedBids.map((bid, idx) => {
                                     const isTop = idx === 0;
+                                    
                                     return (
-                                        <div key={bid.id} className={`relative flex items-center gap-4 p-3 rounded-xl border transition-all ${isTop ? 'bg-white border-red-100 shadow-md' : 'bg-transparent border-transparent opacity-70'}`}>
-                                            <div className={`relative z-10 w-10 h-10 rounded-full flex items-center justify-center font-black text-xs shrink-0 border-2 ${isTop ? 'bg-goblin-red border-goblin-red text-white shadow-lg scale-110' : 'bg-gray-200 border-white text-gray-500'}`}>
-                                                {isTop ? <Crown size={14} fill="currentColor"/> : idx + 1}
+                                        <div key={bid.id} className={`
+                                            flex items-center justify-between p-3 rounded-xl border transition-all duration-500
+                                            ${isTop 
+                                                ? 'bg-white border-goblin-red/30 shadow-md scale-[1.01]' 
+                                                : 'bg-white/40 border-transparent hover:bg-white/80'
+                                            }
+                                        `}>
+                                            <div className="flex items-center gap-3">
+                                                <div className={`
+                                                    w-8 h-8 rounded-full flex items-center justify-center font-black text-[10px] shrink-0
+                                                    ${isTop 
+                                                        ? 'bg-goblin-red text-white shadow-lg' 
+                                                        : 'bg-gray-200 text-gray-500'
+                                                    }
+                                                `}>
+                                                    {isTop ? <Crown size={12} fill="currentColor"/> : idx + 1}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className={`font-bold text-sm ${isTop ? 'text-gray-900' : 'text-gray-600'}`}>{bid.bidderName}</span>
+                                                    <span className="text-[10px] text-gray-400 font-mono">{new Date(bid.timestamp).toLocaleTimeString()}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex-1 min-w-0">
-                                                <div className="flex justify-between items-center mb-0.5">
-                                                    <span className={`font-bold text-sm truncate ${isTop ? 'text-gray-900' : 'text-gray-600'}`}>{bid.bidderName}</span>
-                                                    <span className={`font-black text-base tabular-nums ${isTop ? 'text-goblin-red' : 'text-gray-500'}`}>
-                                                        {bid.amount.toLocaleString()}원
-                                                    </span>
-                                                </div>
-                                                <div className="text-[10px] text-gray-400 font-mono">
-                                                    {new Date(bid.timestamp).toLocaleTimeString()}
-                                                </div>
+                                            <div className={`font-black tabular-nums ${isTop ? 'text-goblin-red text-lg' : 'text-gray-500 text-sm'}`}>
+                                                {bid.amount.toLocaleString()}
                                             </div>
                                         </div>
                                     );
                                 })
                             ) : (
-                                <div className="py-8 text-center bg-gray-50 rounded-xl border border-dashed border-gray-300">
-                                    <p className="text-gray-400 text-xs font-medium">아직 입찰 기록이 없습니다.</p>
+                                <div className="py-12 text-center">
+                                    <p className="text-gray-400 text-sm font-medium">첫 번째 입찰자가 되어보세요!</p>
                                 </div>
                             )}
                         </div>
@@ -288,10 +296,8 @@ export const AuctionDetail: React.FC = () => {
       </div>
 
       {/* Floating Action Bar */}
-      <div className="fixed bottom-0 left-0 right-0 p-4 z-[60] bg-gradient-to-t from-black via-black/90 to-transparent pt-10 pb-safe pointer-events-none">
-         <div className="max-w-4xl mx-auto bg-[#222] border border-gray-700 rounded-2xl p-2 pl-6 shadow-2xl flex items-center justify-between pointer-events-auto relative overflow-hidden">
-             {/* Background glow */}
-             <div className="absolute top-0 left-0 w-1/2 h-full bg-treasure-gold/5 blur-xl"></div>
+      <div className="fixed bottom-0 left-0 right-0 p-4 z-[60] bg-gradient-to-t from-black via-black/95 to-transparent pt-10 pb-safe pointer-events-none">
+         <div className="max-w-4xl mx-auto bg-[#1a1a1a] border border-gray-700 rounded-2xl p-2 pl-6 shadow-2xl flex items-center justify-between pointer-events-auto relative overflow-hidden ring-1 ring-white/10">
              
              <div className="relative z-10">
                  <div className="text-[10px] text-gray-400 font-bold uppercase mb-0.5 tracking-wider">Current Bid</div>
@@ -305,7 +311,7 @@ export const AuctionDetail: React.FC = () => {
              </div>
 
              <div className="flex gap-2">
-                 <button className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#333] hover:bg-[#444] text-gray-400 hover:text-goblin-red transition">
+                 <button className="w-12 h-12 flex items-center justify-center rounded-xl bg-[#2C2C2C] hover:bg-[#333] text-gray-400 hover:text-goblin-red transition">
                      <Heart size={20} />
                  </button>
                  {isSeller ? (
@@ -325,11 +331,11 @@ export const AuctionDetail: React.FC = () => {
          </div>
       </div>
 
-      {/* Bid Modal (Revised for Safe Area & Overflow) */}
+      {/* Bid Modal */}
       {isBidModalOpen && (
           <div className="fixed inset-0 z-[100] flex items-end justify-center sm:items-center sm:p-4">
               <div className="absolute inset-0 bg-black/80 backdrop-blur-sm transition-opacity" onClick={() => setIsBidModalOpen(false)}></div>
-              <div className="bg-antique-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 pb-safe z-10 animate-in slide-in-from-bottom-10 duration-300 text-[#2C2C2C] relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto">
+              <div className="bg-[#EAEAEA] w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 pb-safe z-10 animate-in slide-in-from-bottom-10 duration-300 text-[#2C2C2C] relative overflow-hidden shadow-2xl max-h-[85vh] overflow-y-auto">
                   
                   <div className="flex justify-between items-center mb-6">
                       <h3 className="text-xl font-heading font-bold text-gray-900">입찰 참여</h3>
@@ -394,6 +400,15 @@ export const AuctionDetail: React.FC = () => {
               </div>
           </div>
       )}
+
+      {/* Report Modal */}
+      <ReportModal 
+        isOpen={isReportModalOpen} 
+        onClose={() => setIsReportModalOpen(false)}
+        targetId={product.id}
+        targetType="PRODUCT"
+        targetName={product.title}
+      />
     </div>
   );
 };

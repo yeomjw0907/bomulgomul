@@ -48,6 +48,9 @@ export const Layout: React.FC<{ children: React.ReactNode }> = ({ children }) =>
           <div className="hidden md:flex items-center space-x-8 font-bold text-gray-400 text-sm">
             <Link to="/auctions" className={`hover:text-treasure-gold transition ${location.pathname.includes('auction') ? 'text-treasure-gold' : ''}`}>도깨비 경매</Link>
             <Link to="/shop" className={`hover:text-treasure-gold transition ${location.pathname.includes('shop') ? 'text-treasure-gold' : ''}`}>만물상</Link>
+            {user?.role === UserRole.ADMIN && (
+                <Link to="/admin" className={`hover:text-treasure-gold transition ${location.pathname.includes('admin') ? 'text-treasure-gold' : ''}`}>관리자</Link>
+            )}
             <Link to="/post" className="bg-goblin-red hover:bg-red-700 text-white px-5 py-2 rounded-full transition font-bold flex items-center gap-1.5 shadow-lg shadow-red-900/30 transform hover:-translate-y-0.5 active:translate-y-0">
                <PlusCircle size={16} strokeWidth={2.5} /> 판매하기
             </Link>

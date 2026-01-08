@@ -17,9 +17,11 @@ import {
   Gavel,
   X,
   TrendingUp,
-  Crown
+  Crown,
+  LayoutDashboard
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { UserRole } from '../types';
 
 export const Profile: React.FC = () => {
   const navigate = useNavigate();
@@ -181,6 +183,16 @@ export const Profile: React.FC = () => {
               </div>
           </div>
       </div>
+
+      {/* Admin Menu (Only for Admins) */}
+      {user.role === UserRole.ADMIN && (
+          <>
+            <SectionTitle title="관리자 전용" />
+            <div className="mx-4 bg-[#1E1E1E] rounded-xl overflow-hidden border border-[#2a2a2a]">
+                <MenuItem icon={LayoutDashboard} text="관리자 대시보드" onClick={() => navigate('/admin')} />
+            </div>
+          </>
+      )}
 
       {/* Menu List - My Transactions */}
       <SectionTitle title="나의 거래" />

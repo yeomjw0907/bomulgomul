@@ -25,6 +25,22 @@ export enum PaymentMethod {
   BANK_TRANSFER = 'BANK_TRANSFER' // 무통장입금
 }
 
+export enum ReportStatus {
+  PENDING = 'PENDING',
+  RESOLVED = 'RESOLVED',
+  DISMISSED = 'DISMISSED'
+}
+
+export interface Report {
+  id: string;
+  targetId: string;
+  targetType: 'PRODUCT' | 'USER';
+  reporterId: string;
+  reason: string;
+  status: ReportStatus;
+  timestamp: number;
+}
+
 export interface User {
   id: string;
   name: string;
